@@ -1,47 +1,47 @@
 use itertools::Itertools;
 use regex::Regex;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader, Result};
+use std::fs;
+use std::io::Result;
 
 pub(crate) fn main() -> Result<()> {
     let mut path = env::current_dir()?;
-    path.push("src/puzzles/04.txt");
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
+    path.push("src/puzzles/05.txt");
+    let str_input = fs::read_to_string(path)?;
 
-    let mut r: u32 = 0;
-    let re = Regex::new(r"\d+").unwrap();
+    let mut cranes: Vec<String> = vec![
+        String::from("FLMW"),
+        String::from("FMVZB"),
+        String::from("QLSRVH"),
+        String::from("JTMPQVSF"),
+        String::from("WSL"),
+        String::from("WJRMPVF"),
+        String::from("FRNPCQJ"),
+        String::from("BRWZSPHV"),
+        String::from("WZHGCJMB"),
+    ];
 
-    for maybe_line in reader.lines() {
-        let line = maybe_line?;
-        let matches = re.find_iter(&line);
-        for (m1, m2, m3, m4) in matches.tuples() {
-            let (l1, l2, l3, l4) = (m1.as_str(), m2.as_str(), m3.as_str(), m4.as_str());
-            let (s1, s2, s3, s4): (u32, u32, u32, u32) = (
-                l1.parse().unwrap(),
-                l2.parse().unwrap(),
-                l3.parse().unwrap(),
-                l4.parse().unwrap(),
-            );
-            if overlap(s1, s2, s3, s4) {
-                r += 1;
-            }
+    let re = &Regex::new(r"\d+").unwrap();
+    let splits = str_input.split("\n\n");
+    for (_, moves) in splits.tuples() {
+        let matches = re.find_iter(moves);
+        for (m1, m2, m3) in matches.tuples() {
+            let amount: usize = usize::from_str_radix(m1.as_str(), 10).unwrap();
+            let start_idx: usize = usize::from_str_radix(m2.as_str(), 10).unwrap() - 1;
+            let end_idx: usize = usize::from_str_radix(m3.as_str(), 10).unwrap() - 1;
+
+            let remain: String = cranes[start_idx][amount..].to_string();
+            let mut to_update: String = cranes[start_idx][..amount]
+                .to_string()
+                .chars()
+                .rev()
+                .collect();
+            let to_move = cranes[end_idx].to_string();
+            to_update.push_str(&to_move);
+            cranes[start_idx] = remain;
+            cranes[end_idx] = to_update;
         }
     }
 
-    Ok(println!("{}", r))
-}
-
-fn included(s1: u32, s2: u32, s3: u32, s4: u32) -> bool {
-    s1 <= s3 && s2 >= s4 || s1 >= s3 && s2 <= s4
-}
-
-fn overlap(s1: u32, s2: u32, s3: u32, s4: u32) -> bool {
-    let v1 = vec![s1, s3];
-    let v2 = vec![s2, s4];
-    let i1 = v1.iter().max();
-    let i2 = v2.iter().min();
-
-    i1.unwrap() <= i2.unwrap()
+    Ok(println!("{:?}", cranes))
 }

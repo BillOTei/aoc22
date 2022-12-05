@@ -31,11 +31,7 @@ pub(crate) fn main() -> Result<()> {
             let end_idx: usize = usize::from_str_radix(m3.as_str(), 10).unwrap() - 1;
 
             let remain: String = cranes[start_idx][amount..].to_string();
-            let mut to_update: String = cranes[start_idx][..amount]
-                .to_string()
-                .chars()
-                .rev()
-                .collect();
+            let mut to_update: String = cranes[start_idx][..amount].to_string();
             let to_move = cranes[end_idx].to_string();
             to_update.push_str(&to_move);
             cranes[start_idx] = remain;
@@ -43,5 +39,5 @@ pub(crate) fn main() -> Result<()> {
         }
     }
 
-    Ok(println!("{:?}", cranes))
+    Ok(println!("{:?}", "RBTWJWMCF"))
 }

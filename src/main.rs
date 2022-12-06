@@ -1,43 +1,34 @@
-use itertools::Itertools;
-use regex::Regex;
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io::Result;
+use std::str::Chars;
 
 pub(crate) fn main() -> Result<()> {
     let mut path = env::current_dir()?;
-    path.push("src/puzzles/05.txt");
+    path.push("src/puzzles/06.txt");
     let str_input = fs::read_to_string(path)?;
+    let chars = str_input.chars();
 
-    let mut cranes: Vec<String> = vec![
-        String::from("FLMW"),
-        String::from("FMVZB"),
-        String::from("QLSRVH"),
-        String::from("JTMPQVSF"),
-        String::from("WSL"),
-        String::from("WJRMPVF"),
-        String::from("FRNPCQJ"),
-        String::from("BRWZSPHV"),
-        String::from("WZHGCJMB"),
-    ];
+    Ok(println!("{:?}", get_subroutine(chars, &str_input)))
+}
 
-    let re = &Regex::new(r"\d+").unwrap();
-    let splits = str_input.split("\n\n");
-    for (_, moves) in splits.tuples() {
-        let matches = re.find_iter(moves);
-        for (m1, m2, m3) in matches.tuples() {
-            let amount: usize = usize::from_str_radix(m1.as_str(), 10).unwrap();
-            let start_idx: usize = usize::from_str_radix(m2.as_str(), 10).unwrap() - 1;
-            let end_idx: usize = usize::from_str_radix(m3.as_str(), 10).unwrap() - 1;
+fn get_subroutine(chars: Chars, str: &str) -> usize {
+    let it = chars.enumerate();
+    let l = str.len();
+    let window_size = 14;
+    for (i, c) in it {
+        if i + window_size <= l {
+            let window = &str[i..i + window_size];
+            let mut a = window.chars().collect::<Vec<char>>();
+            let mut uniques = HashSet::new();
+            a.retain(|e| uniques.insert(e.clone()));
 
-            let remain: String = cranes[start_idx][amount..].to_string();
-            let mut to_update: String = cranes[start_idx][..amount].to_string();
-            let to_move = cranes[end_idx].to_string();
-            to_update.push_str(&to_move);
-            cranes[start_idx] = remain;
-            cranes[end_idx] = to_update;
+            if a.len() == window.len() {
+                return i + window_size;
+            }
         }
     }
 
-    Ok(println!("{:?}", "RBTWJWMCF"))
+    0
 }

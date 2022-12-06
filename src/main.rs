@@ -17,7 +17,7 @@ fn get_subroutine(chars: Chars, str: &str) -> usize {
     let it = chars.enumerate();
     let l = str.len();
     let window_size = 14;
-    for (i, c) in it {
+    for (i, _) in it {
         if i + window_size <= l {
             let window = &str[i..i + window_size];
             let mut a = window.chars().collect::<Vec<char>>();

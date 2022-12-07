@@ -1,38 +1,9 @@
 use itertools::Itertools;
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, Result};
-use std::fs;
-
-const DAY: u8 = 7;
-
-#[derive(Debug)]
-enum TerminalCommand<'b> {
-    LS,
-    CD(&'b str),
-}
-
-impl TerminalCommand<'_> {
-    fn parse(line: &str) -> Option<TerminalCommand> {
-        let mut words_iter = line.split(" ");
-        if words_iter.next().unwrap() != "$" {
-            return None;
-        }
-        match words_iter.next().unwrap() {
-            "ls" => return Some(TerminalCommand::LS),
-            "cd" => return Some(TerminalCommand::CD(words_iter.next().unwrap())),
-            _ => panic!("Unknown command"),
-        }
-    }
-}
-
-pub fn read_input(day: u8, test: bool) -> String {
-    let filename = if test { "input_test" } else { "input" };
-    fs::read_to_string(format!("src/puzzles/07.txt"))
-        .expect("Can't read input file")
-}
 
 pub(crate) fn main() -> Result<()> {
     let mut path = env::current_dir()?;
@@ -41,69 +12,42 @@ pub(crate) fn main() -> Result<()> {
     let reader = BufReader::new(file);
     //let str_input = fs::read_to_string(path)?;
 
-    let mut dir_sizes: HashMap<Vec<&str>, u32> = HashMap::new();
-    let mut current_dir: Vec<&str> = Vec::new();
-    let mut current_dir_size: u32 = 0;
+    let mut sum: u32 = 0;
+    let mut dir_sum: u32 = 0;
+    let threshold: u32 = 100000;
+    let mut current_dir = "".to_owned();
+    let mut current_lvl = 0;
+    let mut dir_sizes: BTreeMap<String, u32> = BTreeMap::new();
 
-    let input = read_input(DAY, false);
-
-    for terminal_line in input.lines() {
-
-        match TerminalCommand::parse(&terminal_line) {
-            Some(TerminalCommand::CD(dir)) => {
-                let mut partial_dir: Vec<&str> = Vec::new();
-                for current_dir_part in current_dir.iter() {
-                    partial_dir.push(current_dir_part);
-                    if !dir_sizes.contains_key(&partial_dir) {
-                        dir_sizes.insert(partial_dir.clone(), 0);
-                    }
-                    *dir_sizes.get_mut(&partial_dir).unwrap() += current_dir_size
-                }
-                current_dir_size = 0;
-                if dir == ".." {
-                    current_dir.pop();
+    for maybe_line in reader.lines() {
+        let line = maybe_line?;
+        if &line[0..1] == "$" {
+            if &line[2..4] == "ls" {
+            } else {
+                let folder = &line[5..];
+                if folder != ".." {
+                    current_dir.push_str("/");
+                    current_dir.push_str(folder);
+                    current_lvl += 1;
                 } else {
-                    current_dir.push(dir);
+                    let idx = current_dir.rfind("/").unwrap();
+                    current_dir.truncate(idx);
+                    current_lvl -= 1;
                 }
             }
-            Some(TerminalCommand::LS) => {}
-            None => {
-                let mut words = terminal_line.split(" ");
-                let maybe_file_size = words.next().unwrap();
-                if maybe_file_size != "dir" {
-                    let file_size = maybe_file_size
-                        .parse::<u32>()
-                        .expect("File size must be a number");
-                    current_dir_size += file_size;
-                }
+        } else {
+            let maybe_file_size = line.split(" ").next().unwrap();
+            if maybe_file_size != "dir" {
+                let file_size: u32 = maybe_file_size.parse().unwrap();
+                *dir_sizes.entry(current_dir.clone()).or_insert(0) += file_size;
             }
         }
     }
 
-    // code repeated but whatever
-    let mut partial_dir: Vec<&str> = Vec::new();
-    for current_dir_part in current_dir.iter() {
-        partial_dir.push(current_dir_part);
-        if !dir_sizes.contains_key(&partial_dir) {
-            dir_sizes.insert(partial_dir.clone(), 0);
-        }
-        *dir_sizes.get_mut(&partial_dir).unwrap() += current_dir_size
-    }
+    let mut i: usize = 0;
+    let mut current_main_dir = "".to_owned();
+    let dir_names: Vec<String> = dir_sizes.clone().into_keys().collect();
+    // for (dir, value) in dir_sizes.into_iter() {}
 
-    println!("{:?}", dir_sizes);
-
-    let small_dir_size_sum: u32 = dir_sizes.values().filter(|v| **v < 100000).sum();
-    println!("pt1: {}", small_dir_size_sum);
-
-    let current_fs_size = dir_sizes[&vec!["/"]];
-    let current_free_space = 70_000_000 - current_fs_size;
-    let space_to_clean = 30_000_000 - current_free_space;
-    let min_enough_dir_size: u32 = *dir_sizes
-        .values()
-        .filter(|v| **v > space_to_clean)
-        .min()
-        .unwrap();
-    println!("pt2: {}", min_enough_dir_size);
-
-    Ok(())
+    Ok(println!("{:?}", dir_sizes))
 }

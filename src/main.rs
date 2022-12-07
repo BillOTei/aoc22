@@ -1,34 +1,109 @@
-use std::collections::HashSet;
+use itertools::Itertools;
+use regex::Regex;
+use std::collections::HashMap;
 use std::env;
+use std::fs::File;
+use std::io::{prelude::*, BufReader, Result};
 use std::fs;
-use std::io::Result;
-use std::str::Chars;
+
+const DAY: u8 = 7;
+
+#[derive(Debug)]
+enum TerminalCommand<'b> {
+    LS,
+    CD(&'b str),
+}
+
+impl TerminalCommand<'_> {
+    fn parse(line: &str) -> Option<TerminalCommand> {
+        let mut words_iter = line.split(" ");
+        if words_iter.next().unwrap() != "$" {
+            return None;
+        }
+        match words_iter.next().unwrap() {
+            "ls" => return Some(TerminalCommand::LS),
+            "cd" => return Some(TerminalCommand::CD(words_iter.next().unwrap())),
+            _ => panic!("Unknown command"),
+        }
+    }
+}
+
+pub fn read_input(day: u8, test: bool) -> String {
+    let filename = if test { "input_test" } else { "input" };
+    fs::read_to_string(format!("src/puzzles/07.txt"))
+        .expect("Can't read input file")
+}
 
 pub(crate) fn main() -> Result<()> {
     let mut path = env::current_dir()?;
-    path.push("src/puzzles/06.txt");
-    let str_input = fs::read_to_string(path)?;
-    let chars = str_input.chars();
+    path.push("src/puzzles/07.txt");
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    //let str_input = fs::read_to_string(path)?;
 
-    Ok(println!("{:?}", get_subroutine(chars, &str_input)))
-}
+    let mut dir_sizes: HashMap<Vec<&str>, u32> = HashMap::new();
+    let mut current_dir: Vec<&str> = Vec::new();
+    let mut current_dir_size: u32 = 0;
 
-fn get_subroutine(chars: Chars, str: &str) -> usize {
-    let it = chars.enumerate();
-    let l = str.len();
-    let window_size = 14;
-    for (i, _) in it {
-        if i + window_size <= l {
-            let window = &str[i..i + window_size];
-            let mut a = window.chars().collect::<Vec<char>>();
-            let mut uniques = HashSet::new();
-            a.retain(|e| uniques.insert(e.clone()));
+    let input = read_input(DAY, false);
 
-            if a.len() == window.len() {
-                return i + window_size;
+    for terminal_line in input.lines() {
+
+        match TerminalCommand::parse(&terminal_line) {
+            Some(TerminalCommand::CD(dir)) => {
+                let mut partial_dir: Vec<&str> = Vec::new();
+                for current_dir_part in current_dir.iter() {
+                    partial_dir.push(current_dir_part);
+                    if !dir_sizes.contains_key(&partial_dir) {
+                        dir_sizes.insert(partial_dir.clone(), 0);
+                    }
+                    *dir_sizes.get_mut(&partial_dir).unwrap() += current_dir_size
+                }
+                current_dir_size = 0;
+                if dir == ".." {
+                    current_dir.pop();
+                } else {
+                    current_dir.push(dir);
+                }
+            }
+            Some(TerminalCommand::LS) => {}
+            None => {
+                let mut words = terminal_line.split(" ");
+                let maybe_file_size = words.next().unwrap();
+                if maybe_file_size != "dir" {
+                    let file_size = maybe_file_size
+                        .parse::<u32>()
+                        .expect("File size must be a number");
+                    current_dir_size += file_size;
+                }
             }
         }
     }
 
-    0
+    // code repeated but whatever
+    let mut partial_dir: Vec<&str> = Vec::new();
+    for current_dir_part in current_dir.iter() {
+        partial_dir.push(current_dir_part);
+        if !dir_sizes.contains_key(&partial_dir) {
+            dir_sizes.insert(partial_dir.clone(), 0);
+        }
+        *dir_sizes.get_mut(&partial_dir).unwrap() += current_dir_size
+    }
+
+    println!("{:?}", dir_sizes);
+
+    let small_dir_size_sum: u32 = dir_sizes.values().filter(|v| **v < 100000).sum();
+    println!("pt1: {}", small_dir_size_sum);
+
+    let current_fs_size = dir_sizes[&vec!["/"]];
+    let current_free_space = 70_000_000 - current_fs_size;
+    let space_to_clean = 30_000_000 - current_free_space;
+    let min_enough_dir_size: u32 = *dir_sizes
+        .values()
+        .filter(|v| **v > space_to_clean)
+        .min()
+        .unwrap();
+    println!("pt2: {}", min_enough_dir_size);
+
+    Ok(())
 }
